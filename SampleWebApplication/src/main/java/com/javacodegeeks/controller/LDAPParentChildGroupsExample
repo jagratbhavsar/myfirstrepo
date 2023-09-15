@@ -1,0 +1,67 @@
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.*;
+import java.util.Hashtable;
+
+public class LDAPParentChildGroupsExample {
+    public static void main(String[] args) {
+        // LDAP server connection parameters
+        String ldapUrl = "ldap://your-ldap-server:389";
+        String ldapUser = "your-ldap-username";
+        String ldapPassword = "your-ldap-password";
+        String childGroupName = "ChildGroup"; // Replace with the name of the child group
+
+        Hashtable<String, Object> env = new Hashtable<>();
+        env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+        env.put(Context.PROVIDER_URL, ldapUrl);
+        env.put(Context.SECURITY_AUTHENTICATION, "simple");
+        env.put(Context.SECURITY_PRINCIPAL, ldapUser);
+        env.put(Context.SECURITY_CREDENTIALS, ldapPassword);
+
+        try {
+            DirContext ctx = new InitialDirContext(env);
+
+            // Step 1: Find the Parent Group using the child group's name
+            SearchControls searchControls = new SearchControls();
+            searchControls.setSearchScope(SearchControls.SUBTREE);
+
+            String ldapFilter = "(&(objectClass=groupOfNames)(cn=" + childGroupName + "))";
+            NamingEnumeration<SearchResult> childGroupResults = ctx.search("", ldapFilter, searchControls);
+
+            if (childGroupResults.hasMore()) {
+                SearchResult childGroupResult = childGroupResults.next();
+                String childGroupDN = childGroupResult.getNameInNamespace();
+
+                // Extract the DN of the parent group from the child group's DN
+                String[] parts = childGroupDN.split(",");
+                if (parts.length > 1) {
+                    String parentGroupDN = parts[1]; // Assuming the parent group is at the second level
+                    System.out.println("Parent Group DN: " + parentGroupDN);
+
+                    // Step 2: List Child Groups of the Parent Group
+                    String parentGroupFilter = "(&(objectClass=groupOfNames)(memberOf=" + parentGroupDN + "))";
+                    NamingEnumeration<SearchResult> parentGroupResults = ctx.search("", parentGroupFilter, searchControls);
+
+                    // Iterate through search results (these are the child groups of the parent group)
+                    while (parentGroupResults.hasMore()) {
+                        SearchResult result = parentGroupResults.next();
+                        String childGroupDNInParent = result.getNameInNamespace();
+
+                        // Process child group information as needed
+                        System.out.println("Child Group DN: " + childGroupDNInParent);
+                        // You can access other attributes of the child group here if needed
+                    }
+                } else {
+                    System.out.println("Unable to determine parent group DN from the child group DN.");
+                }
+            } else {
+                System.out.println("Child group not found.");
+            }
+
+            ctx.close();
+        } catch (NamingException e) {
+            e.printStackTrace();
+        }
+    }
+}
