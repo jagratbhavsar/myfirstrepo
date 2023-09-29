@@ -1,0 +1,51 @@
+import javax.naming.*;
+import javax.naming.directory.*;
+import java.util.Hashtable;
+import java.util.Enumeration;
+
+public class LDAPGroupSearch {
+
+    public static void main(String[] args) {
+        String ldapURL = "ldap://your-ldap-server:389"; // LDAP server URL
+        String ldapUsername = "your-ldap-username";
+        String ldapPassword = "your-ldap-password";
+        String searchBase = "ou=Groups,dc=example,dc=com"; // Base DN where the group is located
+        String groupName = "cn=exampleGroup"; // Group CN
+
+        Hashtable<String, String> env = new Hashtable<>();
+        env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+        env.put(Context.PROVIDER_URL, ldapURL);
+        env.put(Context.SECURITY_AUTHENTICATION, "simple");
+        env.put(Context.SECURITY_PRINCIPAL, ldapUsername);
+        env.put(Context.SECURITY_CREDENTIALS, ldapPassword);
+
+        try {
+            DirContext context = new InitialDirContext(env);
+
+            SearchControls searchControls = new SearchControls();
+            searchControls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+            String searchFilter = "(cn=" + groupName + ")";
+            NamingEnumeration<SearchResult> results = context.search(searchBase, searchFilter, searchControls);
+
+            while (results.hasMoreElements()) {
+                SearchResult searchResult = results.nextElement();
+                Attributes attrs = searchResult.getAttributes();
+                Attribute members = attrs.get("member");
+
+                if (members != null) {
+                    Enumeration<?> allMembers = members.getAll();
+                    while (allMembers.hasMoreElements()) {
+                        String member = (String) allMembers.nextElement();
+                        System.out.println("Member: " + member);
+                    }
+                } else {
+                    System.out.println("No members found in the group.");
+                }
+            }
+
+            context.close();
+        } catch (NamingException e) {
+            e.printStackTrace();
+        }
+    }
+}
