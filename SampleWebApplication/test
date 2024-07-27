@@ -1,0 +1,25 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowListAndGetFromBucket",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::123456789012:role/metro-developer"
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:us-west-2:123456789012:accesspoint/metro-ap/object/*",
+        "arn:aws:s3:us-west-2:123456789012:accesspoint/metro-ap"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "s3:DataAccessPointAccount": "123456789012"
+        }
+      }
+    }
+  ]
+}
