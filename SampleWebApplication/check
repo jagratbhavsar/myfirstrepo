@@ -1,0 +1,136 @@
+package com.yourcompany.yourapp.config;
+
+import com.yourcompany.yourapp.interceptor.EmissionTrackingInterceptor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+    @Autowired
+    private EmissionTrackingInterceptor emissionTrackingInterceptor;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        // Register the emission tracking interceptor for all requests
+        registry.addInterceptor(emissionTrackingInterceptor).addPathPatterns("/**");
+    }
+}
+
+
+---------------
+  package com.yourcompany.yourapp.interceptor;
+
+import com.yourcompany.yourapp.util.CarbonEmissionUtility;
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.HandlerInterceptor;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+@Component
+public class EmissionTrackingInterceptor implements HandlerInterceptor {
+
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // Record the start time before processing the request
+        request.setAttribute("startTime", System.currentTimeMillis());
+        return true;
+    }
+
+    @Override
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, org.springframework.web.servlet.ModelAndView modelAndView) throws Exception {
+        // Calculate execution time after the request is processed
+        long startTime = (long) request.getAttribute("startTime");
+        long endTime = System.currentTimeMillis();
+        long executionTimeInMillis = endTime - startTime;
+        
+        // Capture CPU and Memory usage
+        double cpuUsage = CarbonEmissionUtility.getCpuUsage();
+        double memoryUsage = CarbonEmissionUtility.getMemoryUsage();
+
+        // Calculate carbon emissions based on the operation
+        double emissions = CarbonEmissionUtility.calculateCarbonEmissions(cpuUsage, memoryUsage, executionTimeInMillis);
+        
+        // Log emissions data (you can log it to a file or database if required)
+        System.out.println("Request to " + request.getRequestURI() + " took " + executionTimeInMillis + " ms. Carbon emissions: " + emissions + " grams.");
+    }
+}
+---------------------
+  package com.yourcompany.yourapp.service;
+
+import com.yourcompany.yourapp.util.CarbonEmissionUtility;
+import org.springframework.stereotype.Service;
+
+@Service
+public class TransactionService {
+
+    public void processTransaction() {
+        long startTime = System.currentTimeMillis();
+
+        // Business logic for processing a transaction (e.g., database operations)
+        // Simulate some workload for the example
+        try {
+            Thread.sleep(500); // Simulate transaction processing
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        long endTime = System.currentTimeMillis();
+        long executionTimeInMillis = endTime - startTime;
+
+        // Capture system resource usage
+        double cpuUsage = CarbonEmissionUtility.getCpuUsage();
+        double memoryUsage = CarbonEmissionUtility.getMemoryUsage();
+
+        // Calculate carbon emissions based on the operation
+        double emissions = CarbonEmissionUtility.calculateCarbonEmissions(cpuUsage, memoryUsage, executionTimeInMillis);
+
+        // Log emissions data
+        System.out.println("Transaction processed. Execution time: " + executionTimeInMillis + "ms. Carbon emissions: " + emissions + " grams.");
+    }
+}
+
+-------------
+  package com.yourcompany.yourapp.util;
+
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
+
+public class CarbonEmissionUtility {
+
+    // Method to calculate CPU usage (in percentage)
+    public static double getCpuUsage() {
+        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+        long cpuTime = threadMXBean.getCurrentThreadCpuTime();  // In nanoseconds
+        long wallTime = System.nanoTime();  // Total time spent in nanoseconds
+        
+        double cpuUsage = ((double) cpuTime / wallTime) * 100; // Convert to percentage
+        return cpuUsage;
+    }
+
+    // Method to calculate memory usage (in MB)
+    public static double getMemoryUsage() {
+        Runtime runtime = Runtime.getRuntime();
+        long memoryUsed = runtime.totalMemory() - runtime.freeMemory(); // In bytes
+        return memoryUsed / (1024 * 1024); // Convert to MB
+    }
+
+    // Method to calculate carbon emissions from CPU usage, memory usage, and execution time
+    public static double calculateCarbonEmissions(double cpuUsage, double memoryUsage, long executionTimeInMillis) {
+        // Constants for carbon emissions estimation (these can be refined based on your research)
+        double cpuEmissionsFactor = 0.0000001; // Example factor for CPU usage (in grams of CO2 per percentage CPU used)
+        double memoryEmissionsFactor = 0.0001; // Example factor for memory usage (in grams of CO2 per MB of memory used)
+        double executionTimeFactor = 0.0005; // Example factor for time (in grams of CO2 per ms of execution time)
+        
+        // Calculate emissions based on the resources used
+        double cpuEmissions = cpuUsage * cpuEmissionsFactor;
+        double memoryEmissions = memoryUsage * memoryEmissionsFactor;
+        double timeEmissions = executionTimeInMillis * executionTimeFactor;
+
+        // Total emissions (in grams)
+        return cpuEmissions + memoryEmissions + timeEmissions;
+    }
+}
